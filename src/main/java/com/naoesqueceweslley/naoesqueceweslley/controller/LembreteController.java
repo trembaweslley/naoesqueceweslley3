@@ -1,8 +1,10 @@
 package com.naoesqueceweslley.naoesqueceweslley.controller;
 
-
+import com.naoesqueceweslley.naoesqueceweslley.dtos.LembreteRequestDTO;
+import com.naoesqueceweslley.naoesqueceweslley.dtos.LembreteResponseDTO;
 import com.naoesqueceweslley.naoesqueceweslley.enums.Status;
 import com.naoesqueceweslley.naoesqueceweslley.model.Lembrete;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,57 +23,67 @@ public class LembreteController {
     private final AtomicLong geradorId = new AtomicLong(1);
 
     @PostMapping
-    public ResponseEntity<Lembrete> cadastrar(@RequestBody Lembrete lembrete) {
+    public ResponseEntity<LembreteResponseDTO> cadastrar(@Valid @RequestBody LembreteRequestDTO request) {
+        Lembrete lembrete = new Lembrete();
         lembrete.setId(geradorId.getAndIncrement());
-        if (lembrete.getStatus() == null) {
-            lembrete.setStatus(Status.PENDENTE);
-        }
+        lembrete.setTitulo(request.getTitulo());
+        lembrete.setDescricao(request.getDescricao());
+        lembrete.setDataHora(request.getDataHora());
+        lembrete.setPrioridade(request.getPrioridade());
+        lembrete.setStatus(Status.PENDENTE);
+        lembrete.setCriadoEm(LocalDateTime.now());
+        lembrete.setAtualizadoEm(LocalDateTime.now());
+
         lembretes.add(lembrete);
-        return ResponseEntity.status(HttpStatus.CREATED).body(lembrete);
+        return ResponseEntity.status(HttpStatus.CREATED).body(LembreteResponseDTO.fromEntity(lembrete));
     }
 
     @GetMapping
-    public ResponseEntity<List<Lembrete>> listar() {
-        return ResponseEntity.ok(lembretes);
-    }public ResponseEntity<Lembrete> buscarPorId(@PathVariable Long id) {
-        Optional<Lembrete> lembreteOpt = buscarLembretePorId(id);
+    public ResponseEntity<List<LembreteResponseDTO>> listar() {
+        List<LembreteResponseDTO> dtos = new ArrayList<>();
+        for (Lembrete l : lembretes) {
+            dtos.add(LembreteResponseDTO.fromEntity(l));
+        }
+        return ResponseEntity.ok(dtos);
+    }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<LembreteResponseDTO> buscarPorId(@PathVariable Long id) {
+        Optional<Lembrete> lembreteOpt = buscarLembretePorId(id);
         if (lembreteOpt.isPresent()) {
-            return ResponseEntity.ok(lembreteOpt.get());
+            return ResponseEntity.ok(LembreteResponseDTO.fromEntity(lembreteOpt.get()));
         } else {
             return ResponseEntity.notFound().build();
         }
-}
+    }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Lembrete> atualizar(@PathVariable Long id, @RequestBody Lembrete lembreteAtualizado) {
+    public ResponseEntity<LembreteResponseDTO> atualizar(@PathVariable Long id, @Valid @RequestBody LembreteRequestDTO request) {
         Optional<Lembrete> lembreteOpt = buscarLembretePorId(id);
 
         if (lembreteOpt.isPresent()) {
             Lembrete lembreteExistente = lembreteOpt.get();
-            lembreteExistente.setTitulo(lembreteAtualizado.getTitulo());
-            lembreteExistente.setDescricao(lembreteAtualizado.getDescricao());
-            lembreteExistente.setDataHora(lembreteAtualizado.getDataHora());
-            lembreteExistente.setPrioridade(lembreteAtualizado.getPrioridade());
-            if (lembreteAtualizado.getStatus() != null) {
-                lembreteExistente.setStatus(lembreteAtualizado.getStatus());
-            }
+            lembreteExistente.setTitulo(request.getTitulo());
+            lembreteExistente.setDescricao(request.getDescricao());
+            lembreteExistente.setDataHora(request.getDataHora());
+            lembreteExistente.setPrioridade(request.getPrioridade());
             lembreteExistente.setAtualizadoEm(LocalDateTime.now());
-            return ResponseEntity.ok(lembreteExistente);
+
+            return ResponseEntity.ok(LembreteResponseDTO.fromEntity(lembreteExistente));
         } else {
             return ResponseEntity.notFound().build();
         }
     }
 
     @PatchMapping("/{id}/concluir")
-    public ResponseEntity<Lembrete> concluir(@PathVariable Long id) {
+    public ResponseEntity<LembreteResponseDTO> concluir(@PathVariable Long id) {
         Optional<Lembrete> lembreteOpt = buscarLembretePorId(id);
 
         if (lembreteOpt.isPresent()) {
             Lembrete lembrete = lembreteOpt.get();
             lembrete.setStatus(Status.CONCLUIDO);
             lembrete.setAtualizadoEm(LocalDateTime.now());
-            return ResponseEntity.ok(lembrete);
+            return ResponseEntity.ok(LembreteResponseDTO.fromEntity(lembrete));
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -88,6 +100,7 @@ public class LembreteController {
             return ResponseEntity.notFound().build();
         }
     }
+
     private Optional<Lembrete> buscarLembretePorId(Long id) {
         for (Lembrete l : lembretes) {
             if (l.getId().equals(id)) {
@@ -95,4 +108,5 @@ public class LembreteController {
             }
         }
         return Optional.empty();
-    }}
+    }
+}
